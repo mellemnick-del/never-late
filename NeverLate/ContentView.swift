@@ -64,7 +64,7 @@ struct ContentView: View {
                 Caption("PHASE")
                 Text(game.phase.title)
                     .font(Theme.displayMedium(16))
-                    .foregroundStyle(Theme.green)
+                    .foregroundStyle(Theme.gilt)
             }
         }
     }
@@ -97,18 +97,18 @@ private struct MenuCard: View {
         VStack(spacing: 10) {
             switch game.state {
             case .over:
-                Caption(game.isNewBest ? "NEW PERSONAL BEST" : "BEST \(game.best)", color: Theme.green)
+                Caption(game.isNewBest ? "NEW PERSONAL BEST" : "BEST \(game.best)", color: Theme.gilt)
                 Text("LATE").font(Theme.display(44)).tracking(3).foregroundStyle(Theme.red)
                 Text("\(game.score)").font(Theme.display(60)).monospacedDigit().foregroundStyle(Theme.lume)
                 Blurb("\(game.hits) clean hits · reached phase \(game.phase.rawValue)")
                 Pill("TAP TO GO AGAIN")
             case .paused:
-                Caption("ZERO DAY WATCHES", color: Theme.green)
+                Caption("ZERO DAY WATCHES", color: Theme.gilt)
                 Text("PAUSED").font(Theme.display(40)).tracking(3).foregroundStyle(Theme.lume)
                 Blurb("Score \(game.score). The hand picks up right where you left it.")
                 Pill("TAP TO RESUME")
             default:
-                Caption("ZERO DAY WATCHES", color: Theme.green)
+                Caption("ZERO DAY WATCHES", color: Theme.gilt)
                 Text("NEVER LATE").font(Theme.display(40)).tracking(3).foregroundStyle(Theme.lume)
                 Blurb("Tap when the seconds hand is inside the lume marker. Dead center scores double. Let it slip past and the run ends.")
                 Pill("TAP TO START")
@@ -118,7 +118,7 @@ private struct MenuCard: View {
         .padding(.horizontal, 24)
         .padding(.vertical, 22)
         .background(Theme.bg.opacity(0.85), in: RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.bezel, lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.navy, lineWidth: 1))
         .padding(.horizontal, 28)
     }
 }
@@ -163,7 +163,7 @@ private struct IconButton: View {
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(Theme.steel)
                 .frame(width: 44, height: 44)
-                .background(Theme.bezel.opacity(0.6), in: Circle())
+                .background(Theme.navy.opacity(0.6), in: Circle())
         }
         .accessibilityLabel(label)
     }
