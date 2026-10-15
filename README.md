@@ -10,6 +10,8 @@ A seconds hand sweeps the dial and a lume marker sits on the bezel. Tap while th
 | 2 · Reverse | 8 hits | Hand can flip direction after a hit |
 | 3 · Drift | 15 hits | Marker slides along the bezel |
 
+**Modes:** Classic is endless random runs. Daily is the same seeded run for everyone that day; only the first try counts, and later tries are practice.
+
 Tuning lives at the top of `NeverLate/GameModel.swift`.
 
 ## Run it on your iPhone
@@ -34,12 +36,15 @@ NeverLate/
   DialView.swift       Draws the watch dial every frame (SwiftUI Canvas)
   GameModel.swift      Game rules, state, and the 120 Hz display-link loop
   Feedback.swift       Haptics and synthesized sound effects
-  GameCenter.swift     Sign-in, score submission, leaderboard
+  GameCenter.swift     Sign-in, leaderboards, achievements
+  Daily.swift          Daily Challenge seed, number, streak
+  ShareCard.swift      Score image for the share sheet
   Theme.swift          Colors and fonts
   Fonts/               Chakra Petch (SIL Open Font License)
   Assets.xcassets      App icon and accent color
 Support/
   Info.plist           Fonts, 120 Hz, export compliance
+  NeverLate.entitlements  Game Center
 ```
 
 New Swift files dropped into `NeverLate/` are picked up by Xcode automatically.
@@ -48,8 +53,36 @@ New Swift files dropped into `NeverLate/` are picked up by Xcode automatically.
 
 1. **Join the Apple Developer Program** ($99/yr) at developer.apple.com.
 2. **App Store Connect**: My Apps > + > New App. Name "Never Late" (or a variant if taken), bundle ID matching the project, SKU `neverlate`.
-3. **Game Center leaderboard**: once you're in the paid program, add the Game Center capability back in Xcode (Signing & Capabilities > + Capability). Then in App Store Connect, in the app's Services > Game Center tab, add a Classic leaderboard with ID `neverlate.highscore`, score format Integer, sort High to Low. Then add Game Center to the app version.
+3. **Game Center** (1.1 and later): see the setup section below.
 4. **Archive**: in Xcode, set the destination to *Any iOS Device*, then Product > Archive. In the Organizer, click **Distribute App** > App Store Connect.
 5. **TestFlight**: install the build on your phone through the TestFlight app and play a few real runs.
 6. **Listing**: 6.9" iPhone screenshots (take them on your phone), description, keywords, support URL, privacy policy URL. Privacy answers: the app collects no data (Game Center is handled by Apple).
 7. **Submit for review**.
+
+## Game Center setup (1.1)
+
+Game Center needs the paid developer team selected under Signing & Capabilities.
+
+In App Store Connect, open the app, then **Services > Game Center**, and create these. IDs must match exactly.
+
+**Leaderboards**
+
+| Type | Leaderboard ID | Display name | Score format | Sort |
+|---|---|---|---|---|
+| Classic | `neverlate.highscore` | Best Score | Integer | High to Low |
+| Recurring, every 1 day | `neverlate.daily` | Daily Challenge | Integer | High to Low, best score |
+
+**Achievements** (each: 10 points, not hidden, achievable more than once: No)
+
+| Achievement ID | Title | Description |
+|---|---|---|
+| `neverlate.first_perfect` | Dead Center | Land a perfect hit. |
+| `neverlate.reach_reverse` | Counter Clockwise | Reach phase 2, Reverse. |
+| `neverlate.reach_drift` | Bezel Drift | Reach phase 3, Drift. |
+| `neverlate.score_25` | Quarter Hour | Score 25 in one run. |
+| `neverlate.score_50` | Fifty Down | Score 50 in one run. |
+| `neverlate.score_100` | Centurion | Score 100 in one run. |
+| `neverlate.perfect_streak_5` | Chronometer | Land 5 perfect hits in a row. |
+| `neverlate.daily_streak_7` | Daily Wearer | Play the Daily Challenge 7 days in a row. |
+
+Each achievement also needs a 512x512 image. Then add Game Center to the app version before submitting.

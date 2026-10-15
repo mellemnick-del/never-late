@@ -3,6 +3,7 @@ import SwiftUI
 struct ContentView: View {
     @State private var game = GameModel()
     @State private var touching = false
+    @State private var shareImage: Image?
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -48,16 +49,48 @@ struct ContentView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { game.startLoop() } else { game.stopLoop() }
         }
+        .onChange(of: game.state) { _, state in
+            shareImage = state == .over
+                ? ShareCard.image(score: game.score, title: shareTitle, subtitle: shareSubtitle)
+                : nil
+        }
+    }
+
+    private var shareTitle: String {
+        game.lastRunMode == .daily ? "DAILY #\(game.dailyNumber)" : "NEVER LATE"
+    }
+
+    private var shareSubtitle: String {
+        if game.lastRunMode == .daily {
+            return game.dailyStreak > 1 ? "\(game.dailyStreak) DAY STREAK" : "SAME RUN FOR EVERYONE TODAY"
+        }
+        return "REACHED PHASE \(game.phase.rawValue) · \(game.phase.title.dropFirst(4))"
+    }
+
+    private var shareMessage: String {
+        if game.lastRunMode == .daily {
+            return "Never Late Daily #\(game.dailyNumber): \(game.score). Same run for everyone today. Can you beat it?"
+        }
+        return "I scored \(game.score) on Never Late. Can you beat it?"
     }
 
     private var hud: some View {
         HStack(alignment: .bottom) {
             VStack(alignment: .leading, spacing: 2) {
-                Caption("BEST")
-                Text("\(game.best)")
-                    .font(Theme.display(28))
-                    .monospacedDigit()
-                    .foregroundStyle(Theme.lume)
+                if game.mode == .daily {
+                    Caption(game.dailyStreak > 0 ? "DAILY #\(game.dailyNumber) · STREAK \(game.dailyStreak)"
+                                                  : "DAILY #\(game.dailyNumber)")
+                    Text(game.dailyScore.map { "\($0)" } ?? "--")
+                        .font(Theme.display(28))
+                        .monospacedDigit()
+                        .foregroundStyle(Theme.lume)
+                } else {
+                    Caption("BEST")
+                    Text("\(game.best)")
+                        .font(Theme.display(28))
+                        .monospacedDigit()
+                        .foregroundStyle(Theme.lume)
+                }
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 2) {
@@ -77,10 +110,23 @@ struct ContentView: View {
                 game.soundOn.toggle()
             }
             Spacer()
-            Caption(menu ? "TAP ANYWHERE" : "").allowsHitTesting(false)
+            ModePicker(mode: Binding(get: { game.mode }, set: { game.mode = $0 }))
+                .disabled(game.state == .paused)
+                .opacity(game.state == .paused ? 0.4 : 1)
             Spacer()
-            // Leaderboard button returns with Game Center in 1.1; this keeps the caption centered.
-            Color.clear.frame(width: 44, height: 44)
+            HStack(spacing: 10) {
+                if let shareImage, game.state == .over {
+                    ShareLink(item: shareImage,
+                              message: Text(shareMessage),
+                              preview: SharePreview("Never Late", image: shareImage)) {
+                        IconLabel(system: "square.and.arrow.up")
+                    }
+                    .accessibilityLabel("Share score")
+                }
+                IconButton(system: "trophy.fill", label: "Leaderboards and achievements") {
+                    GameCenter.showLeaderboards()
+                }
+            }
         }
         .opacity(menu ? 1 : 0)
         .disabled(!menu)
@@ -96,7 +142,7 @@ private struct MenuCard: View {
         VStack(spacing: 10) {
             switch game.state {
             case .over:
-                Caption(game.isNewBest ? "NEW PERSONAL BEST" : "BEST \(game.best)", color: Theme.gilt)
+                Caption(overCaption, color: Theme.gilt)
                 Text("LATE").font(Theme.display(44)).tracking(3).foregroundStyle(Theme.red)
                 Text("\(game.score)").font(Theme.display(60)).monospacedDigit().foregroundStyle(Theme.lume)
                 Blurb("\(game.hits) clean hits · reached phase \(game.phase.rawValue)")
@@ -106,9 +152,21 @@ private struct MenuCard: View {
                 Blurb("Score \(game.score). The hand picks up right where you left it.")
                 Pill("TAP TO RESUME")
             default:
-                Text("NEVER LATE").font(Theme.display(40)).tracking(3).foregroundStyle(Theme.lume)
-                Blurb("Tap when the seconds hand is inside the lume marker. Dead center scores double. Let it slip past and the run ends.")
-                Pill("TAP TO START")
+                if game.mode == .daily {
+                    Caption("DAILY CHALLENGE #\(game.dailyNumber)", color: Theme.gilt)
+                    Text("NEVER LATE").font(Theme.display(40)).tracking(3).foregroundStyle(Theme.lume)
+                    if let today = game.dailyScore {
+                        Blurb("Today's score: \(today). Replays are practice. A new run unlocks at midnight.")
+                        Pill("PRACTICE")
+                    } else {
+                        Blurb("Same run for everyone today. Only your first try counts, so make it good.")
+                        Pill("TAP TO START")
+                    }
+                } else {
+                    Text("NEVER LATE").font(Theme.display(40)).tracking(3).foregroundStyle(Theme.lume)
+                    Blurb("Tap when the seconds hand is inside the lume marker. Dead center scores double. Let it slip past and the run ends.")
+                    Pill("TAP TO START")
+                }
             }
         }
         .multilineTextAlignment(.center)
@@ -117,6 +175,43 @@ private struct MenuCard: View {
         .background(Theme.bg.opacity(0.85), in: RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.navy, lineWidth: 1))
         .padding(.horizontal, 28)
+    }
+
+    private var overCaption: String {
+        switch (game.lastRunMode, game.lastRunScored) {
+        case (.daily, true):
+            game.dailyStreak > 1 ? "DAILY #\(game.dailyNumber) · \(game.dailyStreak) DAY STREAK" : "DAILY #\(game.dailyNumber)"
+        case (.daily, false):
+            "PRACTICE · TODAY'S SCORE \(game.dailyScore ?? 0)"
+        default:
+            game.isNewBest ? "NEW PERSONAL BEST" : "BEST \(game.best)"
+        }
+    }
+}
+
+private struct ModePicker: View {
+    @Binding var mode: GameModel.Mode
+
+    var body: some View {
+        HStack(spacing: 2) {
+            segment("CLASSIC", .classic)
+            segment("DAILY", .daily)
+        }
+        .padding(3)
+        .background(Theme.navy.opacity(0.6), in: Capsule())
+    }
+
+    private func segment(_ title: String, _ value: GameModel.Mode) -> some View {
+        Button {
+            mode = value
+        } label: {
+            Text(title)
+                .font(Theme.mono(11, weight: .semibold)).tracking(1.5)
+                .foregroundStyle(mode == value ? Theme.bg : Theme.steel)
+                .padding(.horizontal, 12).frame(height: 32)
+                .background(mode == value ? Theme.lume : Color.clear, in: Capsule())
+        }
+        .accessibilityAddTraits(mode == value ? .isSelected : [])
     }
 }
 
@@ -156,13 +251,20 @@ private struct IconButton: View {
     let action: () -> Void
     var body: some View {
         Button(action: action) {
-            Image(systemName: system)
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(Theme.steel)
-                .frame(width: 44, height: 44)
-                .background(Theme.navy.opacity(0.6), in: Circle())
+            IconLabel(system: system)
         }
         .accessibilityLabel(label)
+    }
+}
+
+private struct IconLabel: View {
+    let system: String
+    var body: some View {
+        Image(systemName: system)
+            .font(.system(size: 17, weight: .semibold))
+            .foregroundStyle(Theme.steel)
+            .frame(width: 44, height: 44)
+            .background(Theme.navy.opacity(0.6), in: Circle())
     }
 }
 

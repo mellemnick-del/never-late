@@ -7,6 +7,10 @@ import QuartzCore
 final class GameModel {
     enum State { case ready, playing, paused, over }
 
+    enum Mode: String {
+        case classic, daily
+    }
+
     enum Phase: Int {
         case steady = 1, reverse, drift
 
@@ -39,6 +43,22 @@ final class GameModel {
     private(set) var isNewBest = false
     private(set) var showCard = true
 
+    /// Classic is endless random runs. Daily is the same seeded run for everyone, one scored try per day.
+    var mode: Mode {
+        didSet {
+            UserDefaults.standard.set(mode.rawValue, forKey: "mode")
+            refreshDaily()
+        }
+    }
+    /// True when this Daily run is a replay after today's scored attempt.
+    private(set) var isPractice = false
+    private(set) var dailyScore: Int?
+    private(set) var dailyStreak = 0
+    private(set) var dailyNumber = Daily.number()
+    /// What the finished run was, for the game over card and share card.
+    private(set) var lastRunMode: Mode = .classic
+    private(set) var lastRunScored = true
+
     private(set) var angle = 0.0
     private(set) var direction = 1.0
     private(set) var speed = GameModel.startSpeed
@@ -66,12 +86,23 @@ final class GameModel {
     @ObservationIgnored private var displayLink: CADisplayLink?
     @ObservationIgnored private var lastTimestamp: CFTimeInterval = 0
     @ObservationIgnored private var lockUntil: CFTimeInterval = 0
+    @ObservationIgnored private var rng = SeededGenerator(seed: UInt64.random(in: 0...UInt64.max))
+    @ObservationIgnored private var perfectStreak = 0
 
     init() {
         let defaults = UserDefaults.standard
         best = defaults.integer(forKey: "bestScore")
         soundOn = defaults.object(forKey: "soundOn") as? Bool ?? true
+        mode = Mode(rawValue: defaults.string(forKey: "mode") ?? "") ?? .classic
         feedback.soundOn = soundOn
+        refreshDaily()
+    }
+
+    /// Re-reads today's Daily record (it changes at midnight and after a scored run).
+    func refreshDaily() {
+        dailyScore = Daily.todaysScore
+        dailyStreak = Daily.streak
+        dailyNumber = Daily.number()
     }
 
     // MARK: Loop
@@ -84,6 +115,7 @@ final class GameModel {
         displayLink = link
         lastTimestamp = 0
         feedback.prepare()
+        refreshDaily()
     }
 
     func stopLoop() {
@@ -137,6 +169,15 @@ final class GameModel {
     // MARK: Rules
 
     private func start() {
+        refreshDaily()
+        if mode == .daily {
+            rng = SeededGenerator(seed: Daily.seed())
+            isPractice = dailyScore != nil
+        } else {
+            rng = SeededGenerator(seed: UInt64.random(in: 0...UInt64.max))
+            isPractice = false
+        }
+        perfectStreak = 0
         state = .playing
         score = 0
         hits = 0
@@ -153,7 +194,7 @@ final class GameModel {
     }
 
     private func spawnTarget() {
-        distance = .pi * Double.random(in: 0.55...1.55)
+        distance = .pi * Double.random(in: 0.55...1.55, using: &rng)
     }
 
     private func hit() {
@@ -164,9 +205,19 @@ final class GameModel {
         halfWidth = max(Self.minHalfWidth, halfWidth * Self.shrink)
 
         let phase = self.phase
-        if phase.rawValue >= Phase.reverse.rawValue && Bool.random() { direction *= -1 }
-        drift = phase == .drift ? (Bool.random() ? -1 : 1) * Double.random(in: 0.3...0.75) : 0
+        // Always draw the same numbers in the same order so Daily runs match for everyone.
+        let flip = Bool.random(using: &rng)
+        let driftSign: Double = Bool.random(using: &rng) ? -1 : 1
+        let driftSpeed = Double.random(in: 0.3...0.75, using: &rng)
+        if phase.rawValue >= Phase.reverse.rawValue && flip { direction *= -1 }
+        drift = phase == .drift ? driftSign * driftSpeed : 0
         spawnTarget()
+
+        perfectStreak = perfect ? perfectStreak + 1 : 0
+        if perfect { GameCenter.unlock(.firstPerfect) }
+        if perfectStreak >= 5 { GameCenter.unlock(.perfectStreak5) }
+        if hits == 8 { GameCenter.unlock(.reachReverse) }
+        if hits == 15 { GameCenter.unlock(.reachDrift) }
 
         flash = 1
         flashPerfect = perfect
@@ -178,13 +229,28 @@ final class GameModel {
         state = .over
         shake = 1
         lockUntil = CACurrentMediaTime() + 0.65
-        if score > best {
-            best = score
-            isNewBest = true
-            UserDefaults.standard.set(best, forKey: "bestScore")
+        lastRunMode = mode
+        lastRunScored = !isPractice
+        switch mode {
+        case .classic:
+            if score > best {
+                best = score
+                isNewBest = true
+                UserDefaults.standard.set(best, forKey: "bestScore")
+            }
+            GameCenter.submit(score: score, daily: false)
+        case .daily where !isPractice:
+            let streak = Daily.record(score: score)
+            refreshDaily()
+            GameCenter.submit(score: score, daily: true)
+            if streak >= 7 { GameCenter.unlock(.dailyStreak7) }
+        case .daily:
+            break
         }
+        if score >= 25 { GameCenter.unlock(.score25) }
+        if score >= 50 { GameCenter.unlock(.score50) }
+        if score >= 100 { GameCenter.unlock(.score100) }
         feedback.miss()
-        GameCenter.submit(score: score)
         Task { @MainActor [weak self] in
             try? await Task.sleep(for: .milliseconds(450))
             if self?.state == .over { self?.showCard = true }

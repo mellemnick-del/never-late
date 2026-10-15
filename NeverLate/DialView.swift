@@ -42,7 +42,7 @@ struct DialView: View {
     }
 }
 
-private enum DialRenderer {
+enum DialRenderer {
     static let tau = Double.pi * 2
 
     /// Point on a circle for a dial angle (0 at 12 o'clock, clockwise).
