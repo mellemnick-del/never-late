@@ -79,9 +79,8 @@ struct ContentView: View {
             Spacer()
             Caption(menu ? "TAP ANYWHERE" : "").allowsHitTesting(false)
             Spacer()
-            IconButton(system: "trophy.fill", label: "Leaderboard") {
-                GameCenter.showLeaderboard()
-            }
+            // Leaderboard button returns with Game Center in 1.1; this keeps the caption centered.
+            Color.clear.frame(width: 44, height: 44)
         }
         .opacity(menu ? 1 : 0)
         .disabled(!menu)
