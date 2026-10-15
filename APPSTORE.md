@@ -58,10 +58,20 @@ First release.
 
 No login required. Tap anywhere to start. Tap when the seconds hand is inside the glowing marker on the bezel; a miss ends the run.
 
-## Screenshots (6.9" iPhone, take on your iPhone 17 Pro Max)
+## Screenshots (6.9" iPhone, 1320 x 2868)
 
-1. Start screen with the dial and "TAP TO START"
-2. Mid-run with the lume marker lit and the hand closing in
-3. A "PERFECT +2" flash
-4. Phase 3 · Drift in the top right
-5. The red "LATE" game over card with a good score
+Ready to upload, in order: `appstore/screenshots/01.png` to `05.png`.
+
+| # | Headline | Line under it |
+|---|---|---|
+| 1 | Tap on time. | One tap. One seconds hand. |
+| 2 | Hit dead center. | Perfect hits score double. |
+| 3 | It fights back. | The hand reverses. The bezel drifts. |
+| 4 | Built for watch people. | 24-hour GMT bezel. Cream lume. Real time. |
+| 5 | Plays in a minute. | For lines, timeouts and commercial breaks. |
+
+They are drawn by `tools/make_screenshots.py`, which matches the app's look. To frame real screenshots from the phone instead:
+
+```
+python3 tools/make_screenshots.py appstore/screenshots --shot 1=IMG_0001.PNG --shot 2=IMG_0002.PNG
+```
