@@ -103,12 +103,10 @@ private struct MenuCard: View {
                 Blurb("\(game.hits) clean hits · reached phase \(game.phase.rawValue)")
                 Pill("TAP TO GO AGAIN")
             case .paused:
-                Caption("ZERO DAY WATCHES", color: Theme.gilt)
                 Text("PAUSED").font(Theme.display(40)).tracking(3).foregroundStyle(Theme.lume)
                 Blurb("Score \(game.score). The hand picks up right where you left it.")
                 Pill("TAP TO RESUME")
             default:
-                Caption("ZERO DAY WATCHES", color: Theme.gilt)
                 Text("NEVER LATE").font(Theme.display(40)).tracking(3).foregroundStyle(Theme.lume)
                 Blurb("Tap when the seconds hand is inside the lume marker. Dead center scores double. Let it slip past and the run ends.")
                 Pill("TAP TO START")
